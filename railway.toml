@@ -1,0 +1,10 @@
+[build]
+builder = "dockerfile"
+buildCommand = "docker build -t app ."
+
+[deploy]
+startCommand = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"
+restartPolicyMaxRetries = 5
+restartPolicyWindowSeconds = 600
+healthcheckPath = "/health"
+healthcheckTimeout = 30

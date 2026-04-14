@@ -8,9 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 COPY login.html .
 COPY dashboard.html .
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
 
 EXPOSE 8000
 
-ENTRYPOINT ["./entrypoint.sh"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
