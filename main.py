@@ -1,19 +1,20 @@
 from fastapi import FastAPI, Depends, HTTPException, status
-from fastapi.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthCredentials
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text, Enum
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
-import json
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
 # Database Setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./school.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -31,7 +32,7 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
-    role = Column(String, default="student")  # student, teacher, admin
+    role = Column(String, default="student")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -57,7 +58,7 @@ class Attendance(Base):
     id = Column(Integer, primary_key=True)
     student_id = Column(Integer, ForeignKey("students.id"))
     date = Column(DateTime)
-    status = Column(String)  # present, absent, late
+    status = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Message(Base):
@@ -76,7 +77,7 @@ class CalendarEvent(Base):
     description = Column(Text)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
-    event_type = Column(String)  # assignment, exam, holiday, meeting
+    event_type = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)
@@ -93,11 +94,6 @@ class UserResponse(BaseModel):
     username: str
     email: str
     role: str
-
-class StudentCreate(BaseModel):
-    user_id: int
-    student_id: str
-    grade_level: str
 
 class GradeResponse(BaseModel):
     id: int
@@ -170,7 +166,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(credentials: HTTPAuthCredentials = Depends(security), db: Session = Depends(get_db)):
+async def get_current_user(credentials = Depends(security), db: Session = Depends(get_db)):
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("sub")
@@ -269,6 +265,19 @@ def create_event(event: CalendarEventCreate, current_user: User = Depends(get_cu
 @app.get("/health")
 def health_check():
     return {"status": "running"}
+
+# Serve static files
+@app.get("/")
+async def root():
+    return FileResponse("login.html", media_type="text/html")
+
+@app.get("/login.html")
+async def get_login():
+    return FileResponse("login.html", media_type="text/html")
+
+@app.get("/dashboard.html")
+async def get_dashboard():
+    return FileResponse("dashboard.html", media_type="text/html")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))

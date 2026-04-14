@@ -12,7 +12,7 @@ COPY dashboard.html .
 EXPOSE 8000
 
 ENV PORT=8000
-ENV DATABASE_URL=sqlite:///./school.db
+ENV DATABASE_URL=postgresql://user:password@localhost/school
 ENV SECRET_KEY=your-secret-key-change-in-production
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
