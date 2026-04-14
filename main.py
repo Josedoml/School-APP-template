@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
@@ -82,29 +82,37 @@ class CalendarEvent(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# Pydantic Schemas
+# Pydantic Schemas with ORM mode
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    email: str
+    role: str
+    model_config = ConfigDict(from_attributes=True)
+
 class UserCreate(BaseModel):
     username: str
     email: str
     password: str
     role: str = "student"
 
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    email: str
-    role: str
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserResponse
 
 class GradeResponse(BaseModel):
     id: int
     subject: str
     grade: float
     semester: str
+    model_config = ConfigDict(from_attributes=True)
 
 class AttendanceResponse(BaseModel):
     id: int
     date: datetime
     status: str
+    model_config = ConfigDict(from_attributes=True)
 
 class MessageCreate(BaseModel):
     recipient_id: int
@@ -116,6 +124,7 @@ class MessageResponse(BaseModel):
     recipient_id: int
     content: str
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
 
 class CalendarEventCreate(BaseModel):
     title: str
@@ -131,6 +140,7 @@ class CalendarEventResponse(BaseModel):
     start_date: datetime
     end_date: datetime
     event_type: str
+    model_config = ConfigDict(from_attributes=True)
 
 # FastAPI App
 app = FastAPI(title="School Management System")
@@ -181,7 +191,7 @@ async def get_current_user(credentials = Depends(security), db: Session = Depend
     return user
 
 # Auth Endpoints
-@app.post("/auth/register")
+@app.post("/auth/register", response_model=AuthResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == user.email).first()
     if existing:
@@ -198,22 +208,30 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
     
     access_token = create_access_token(data={"sub": db_user.id})
-    return {"access_token": access_token, "token_type": "bearer", "user": UserResponse.from_orm(db_user).dict()}
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.from_orm(db_user)
+    )
 
-@app.post("/auth/login")
+@app.post("/auth/login", response_model=AuthResponse)
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     access_token = create_access_token(data={"sub": user.id})
-    return {"access_token": access_token, "token_type": "bearer", "user": UserResponse.from_orm(user).dict()}
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.from_orm(user)
+    )
 
 # Grades Endpoints
 @app.get("/grades/{student_id}")
 def get_grades(student_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     grades = db.query(Grade).filter(Grade.student_id == student_id).all()
-    return [GradeResponse.from_orm(g).dict() for g in grades]
+    return [GradeResponse.from_orm(g) for g in grades]
 
 @app.post("/grades")
 def add_grade(student_id: int, subject: str, grade: float, semester: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -226,7 +244,7 @@ def add_grade(student_id: int, subject: str, grade: float, semester: str, curren
 @app.get("/attendance/{student_id}")
 def get_attendance(student_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     attendance = db.query(Attendance).filter(Attendance.student_id == student_id).all()
-    return [AttendanceResponse.from_orm(a).dict() for a in attendance]
+    return [AttendanceResponse.from_orm(a) for a in attendance]
 
 @app.post("/attendance")
 def update_attendance(student_id: int, status: str, date: datetime, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -239,7 +257,7 @@ def update_attendance(student_id: int, status: str, date: datetime, current_user
 @app.get("/messages")
 def get_messages(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     messages = db.query(Message).filter((Message.recipient_id == current_user.id) | (Message.sender_id == current_user.id)).all()
-    return [MessageResponse.from_orm(m).dict() for m in messages]
+    return [MessageResponse.from_orm(m) for m in messages]
 
 @app.post("/messages")
 def send_message(msg: MessageCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -252,7 +270,7 @@ def send_message(msg: MessageCreate, current_user: User = Depends(get_current_us
 @app.get("/calendar")
 def get_calendar(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     events = db.query(CalendarEvent).filter(CalendarEvent.user_id == current_user.id).all()
-    return [CalendarEventResponse.from_orm(e).dict() for e in events]
+    return [CalendarEventResponse.from_orm(e) for e in events]
 
 @app.post("/calendar")
 def create_event(event: CalendarEventCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
