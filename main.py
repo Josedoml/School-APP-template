@@ -1,17 +1,20 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, ForeignKey, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 from datetime import datetime, timedelta
 from typing import List, Optional
 import os
 from passlib.context import CryptContext
 from jose import JWTError, jwt
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import secrets
 
 # Database Setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./school.db")
@@ -25,6 +28,13 @@ security = HTTPBearer()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 
+# Email Configuration
+EMAIL_FROM = os.getenv("EMAIL_FROM", "noreply@schoolmanagement.com")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:8000")
+
 # Models
 class User(Base):
     __tablename__ = "users"
@@ -34,6 +44,8 @@ class User(Base):
     hashed_password = Column(String)
     role = Column(String, default="student")
     is_active = Column(Boolean, default=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class Student(Base):
@@ -101,6 +113,13 @@ class AuthResponse(BaseModel):
     token_type: str
     user: UserResponse
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
 class GradeResponse(BaseModel):
     id: int
     subject: str
@@ -141,6 +160,73 @@ class CalendarEventResponse(BaseModel):
     end_date: datetime
     event_type: str
     model_config = ConfigDict(from_attributes=True)
+
+# Email Service
+def send_email(to_email: str, subject: str, body: str, html_body: str = None):
+    """Send email via SMTP"""
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = EMAIL_FROM
+        msg['To'] = to_email
+        
+        msg.attach(MIMEText(body, 'plain'))
+        if html_body:
+            msg.attach(MIMEText(html_body, 'html'))
+        
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_FROM, EMAIL_PASSWORD)
+            server.send_message(msg)
+        
+        return True
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        return False
+
+def send_password_reset_email(email: str, reset_token: str):
+    """Send password reset email"""
+    reset_url = f"{FRONTEND_URL}/reset-password.html?token={reset_token}"
+    
+    subject = "School Management System - Password Reset Request"
+    
+    text_body = f"""
+    Hello,
+    
+    You requested a password reset for your School Management System account.
+    
+    Click the link below to reset your password (valid for 1 hour):
+    {reset_url}
+    
+    If you didn't request this, please ignore this email.
+    
+    Best regards,
+    School Management System Team
+    """
+    
+    html_body = f"""
+    <html>
+        <body style="font-family: Arial, sans-serif;">
+            <div style="max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #011f5b;">Password Reset Request</h2>
+                <p>Hello,</p>
+                <p>You requested a password reset for your School Management System account.</p>
+                <p>Click the button below to reset your password (valid for 1 hour):</p>
+                <p>
+                    <a href="{reset_url}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                        Reset Password
+                    </a>
+                </p>
+                <p>Or copy this link: <a href="{reset_url}">{reset_url}</a></p>
+                <p style="color: #666; font-size: 12px;">If you didn't request this, please ignore this email.</p>
+                <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+                <p style="color: #999; font-size: 12px;">School Management System Team</p>
+            </div>
+        </body>
+    </html>
+    """
+    
+    return send_email(email, subject, text_body, html_body)
 
 # FastAPI App
 app = FastAPI(title="School Management System")
@@ -227,6 +313,61 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
         user=UserResponse.from_orm(user)
     )
 
+@app.post("/auth/forgot-password")
+def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == request.email).first()
+    
+    if not user:
+        # Don't reveal if email exists (security best practice)
+        return {"message": "If email exists, password reset link has been sent"}
+    
+    # Generate reset token (valid for 1 hour)
+    reset_token = secrets.token_urlsafe(32)
+    reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+    
+    user.reset_token = reset_token
+    user.reset_token_expires = reset_token_expires
+    db.commit()
+    
+    # Send email
+    email_sent = send_password_reset_email(user.email, reset_token)
+    
+    if not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send reset email. Please try again later.")
+    
+    return {"message": "Password reset link has been sent to your email"}
+
+@app.post("/auth/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == request.token).first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+    
+    # Check if token has expired
+    if user.reset_token_expires < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Reset token has expired. Please request a new one.")
+    
+    # Update password
+    user.hashed_password = hash_password(request.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    db.commit()
+    
+    return {"message": "Password has been reset successfully"}
+
+@app.post("/auth/verify-reset-token")
+def verify_reset_token(token: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == token).first()
+    
+    if not user:
+        return {"valid": False, "message": "Invalid reset token"}
+    
+    if user.reset_token_expires < datetime.utcnow():
+        return {"valid": False, "message": "Reset token has expired"}
+    
+    return {"valid": True, "message": "Token is valid"}
+
 # Grades Endpoints
 @app.get("/grades/{student_id}")
 def get_grades(student_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -296,6 +437,14 @@ async def get_login():
 @app.get("/dashboard.html")
 async def get_dashboard():
     return FileResponse("dashboard.html", media_type="text/html")
+
+@app.get("/forgot-password.html")
+async def get_forgot_password():
+    return FileResponse("forgot-password.html", media_type="text/html")
+
+@app.get("/reset-password.html")
+async def get_reset_password():
+    return FileResponse("reset-password.html", media_type="text/html")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
