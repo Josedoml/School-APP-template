@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Management - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 5px rgba(102, 126, 234, 0.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .toggle-text {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .toggle-text a {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .role-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .role-btn {
+            padding: 10px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .role-btn.selected {
+            border-color: #667eea;
+            background: #f0f4ff;
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>📚 School System</h1>
+        
+        <div id="alert"></div>
+
+        <!-- Login Form -->
+        <div id="login-form" class="form-section active">
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="login-username" placeholder="Enter your username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <div class="toggle-text">
+                Don't have an account? <a onclick="toggleForm()">Register</a>
+            </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-form" class="form-section">
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" id="register-username" placeholder="Choose a username" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="register-email" placeholder="Enter your email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="register-password" placeholder="Create a password" required>
+                </div>
+                <div class="form-group">
+                    <label>Role:</label>
+                    <div class="role-select">
+                        <div class="role-btn selected" onclick="selectRole('student')">👨‍🎓 Student</div>
+                        <div class="role-btn" onclick="selectRole('teacher')">👨‍🏫 Teacher</div>
+                        <div class="role-btn" onclick="selectRole('admin')">⚙️ Admin</div>
+                    </div>
+                    <input type="hidden" id="selected-role" value="student">
+                </div>
+                <button type="submit">Register</button>
+            </form>
+            <div class="toggle-text">
+                Already have an account? <a onclick="toggleForm()">Login</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+
+        function toggleForm() {
+            document.getElementById('login-form').classList.toggle('active');
+            document.getElementById('register-form').classList.toggle('active');
+            document.getElementById('alert').innerHTML = '';
+        }
+
+        function selectRole(role) {
+            document.getElementById('selected-role').value = role;
+            document.querySelectorAll('.role-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+
+        function showAlert(message, type = 'error') {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `username=${username}&password=${password}`
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    showAlert('Login successful! Redirecting...', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                } else {
+                    showAlert('Invalid username or password');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message);
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            const data = {
+                username: document.getElementById('register-username').value,
+                email: document.getElementById('register-email').value,
+                password: document.getElementById('register-password').value,
+                role: document.getElementById('selected-role').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    localStorage.setItem('token', result.access_token);
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    showAlert('Registration successful! Redirecting...', 'success');
+                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                } else {
+                    const error = await response.json();
+                    showAlert(error.detail || 'Registration failed');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

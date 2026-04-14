@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Management Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav button {
+            padding: 10px 20px;
+            border: none;
+            background: #667eea;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+
+        .nav button:hover {
+            background: #764ba2;
+        }
+
+        .logout {
+            background: #e74c3c;
+        }
+
+        .logout:hover {
+            background: #c0392b;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .stat {
+            font-size: 36px;
+            color: #764ba2;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: inherit;
+        }
+
+        button[type="submit"] {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background: #764ba2;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .tab {
+            display: none;
+        }
+
+        .tab.active {
+            display: block;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .status-present {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-absent {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-late {
+            background: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 School Management System</h1>
+            <div class="nav">
+                <button onclick="switchTab('dashboard')">Dashboard</button>
+                <button onclick="switchTab('grades')">Grades</button>
+                <button onclick="switchTab('attendance')">Attendance</button>
+                <button onclick="switchTab('messages')">Messages</button>
+                <button onclick="switchTab('calendar')">Calendar</button>
+                <button class="logout" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <div id="alert"></div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab active">
+            <div class="dashboard">
+                <div class="card">
+                    <h2>👥 Active Students</h2>
+                    <div class="stat" id="student-count">--</div>
+                    <p>Total enrolled students</p>
+                </div>
+                <div class="card">
+                    <h2>📊 Attendance Rate</h2>
+                    <div class="stat" id="attendance-rate">--</div>
+                    <p>Current semester average</p>
+                </div>
+                <div class="card">
+                    <h2>📈 Class Performance</h2>
+                    <div class="stat" id="avg-grade">--</div>
+                    <p>Average GPA across grades</p>
+                </div>
+                <div class="card">
+                    <h2>💬 Pending Messages</h2>
+                    <div class="stat" id="message-count">--</div>
+                    <p>Unread communications</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Grade Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="gradeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Attendance Trend</h2>
+                <div class="chart-container">
+                    <canvas id="attendanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grades Tab -->
+        <div id="grades" class="tab">
+            <div class="card">
+                <h2>Student Grades</h2>
+                <div class="form-group">
+                    <label>Student ID:</label>
+                    <input type="number" id="grade-student-id" placeholder="Enter student ID">
+                </div>
+                <button onclick="loadGrades()">View Grades</button>
+                
+                <table id="grades-table" class="hidden">
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Grade</th>
+                            <th>Semester</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="grades-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Add Grade</h2>
+                <form onsubmit="addGrade(event)">
+                    <div class="form-group">
+                        <label>Student ID:</label>
+                        <input type="number" id="add-grade-student-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Subject:</label>
+                        <input type="text" id="add-grade-subject" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Grade:</label>
+                        <input type="number" step="0.01" min="0" max="100" id="add-grade-value" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Semester:</label>
+                        <select id="add-grade-semester" required>
+                            <option>Fall 2024</option>
+                            <option>Spring 2025</option>
+                            <option>Summer 2025</option>
+                        </select>
+                    </div>
+                    <button type="submit">Add Grade</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Attendance Tab -->
+        <div id="attendance" class="tab">
+            <div class="card">
+                <h2>Student Attendance</h2>
+                <div class="form-group">
+                    <label>Student ID:</label>
+                    <input type="number" id="attendance-student-id" placeholder="Enter student ID">
+                </div>
+                <button onclick="loadAttendance()">View Attendance</button>
+                
+                <table id="attendance-table" class="hidden">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th>Recorded</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Mark Attendance</h2>
+                <form onsubmit="updateAttendance(event)">
+                    <div class="form-group">
+                        <label>Student ID:</label>
+                        <input type="number" id="mark-attendance-student-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Status:</label>
+                        <select id="mark-attendance-status" required>
+                            <option>present</option>
+                            <option>absent</option>
+                            <option>late</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Date:</label>
+                        <input type="datetime-local" id="mark-attendance-date" required>
+                    </div>
+                    <button type="submit">Mark Attendance</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Messages Tab -->
+        <div id="messages" class="tab">
+            <div class="card">
+                <h2>Messages</h2>
+                <button onclick="loadMessages()">Refresh Messages</button>
+                
+                <table id="messages-table" class="hidden">
+                    <thead>
+                        <tr>
+                            <th>From</th>
+                            <th>Message</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="messages-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Send Message</h2>
+                <form onsubmit="sendMessage(event)">
+                    <div class="form-group">
+                        <label>Recipient ID:</label>
+                        <input type="number" id="message-recipient-id" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Message:</label>
+                        <textarea id="message-content" rows="4" required></textarea>
+                    </div>
+                    <button type="submit">Send Message</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Calendar Tab -->
+        <div id="calendar" class="tab">
+            <div class="card">
+                <h2>Calendar Events</h2>
+                <button onclick="loadCalendarEvents()">Refresh Events</button>
+                
+                <table id="calendar-table" class="hidden">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Type</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calendar-body"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Create Event</h2>
+                <form onsubmit="createEvent(event)">
+                    <div class="form-group">
+                        <label>Title:</label>
+                        <input type="text" id="event-title" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Description:</label>
+                        <textarea id="event-description" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Date:</label>
+                        <input type="datetime-local" id="event-start" required>
+                    </div>
+                    <div class="form-group">
+                        <label>End Date:</label>
+                        <input type="datetime-local" id="event-end" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Event Type:</label>
+                        <select id="event-type" required>
+                            <option>assignment</option>
+                            <option>exam</option>
+                            <option>holiday</option>
+                            <option>meeting</option>
+                        </select>
+                    </div>
+                    <button type="submit">Create Event</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        let currentUser = null;
+        let token = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html';
+            }
+            initializeDashboard();
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            
+            if (tabName === 'dashboard') initializeDashboard();
+            else if (tabName === 'messages') loadMessages();
+            else if (tabName === 'calendar') loadCalendarEvents();
+        }
+
+        function showAlert(message, type = 'success') {
+            const alertDiv = document.getElementById('alert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            setTimeout(() => alertDiv.innerHTML = '', 5000);
+        }
+
+        async function initializeDashboard() {
+            try {
+                // Load summary data
+                const response = await fetch(`${API_URL}/health`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                    // Mock data for demonstration
+                    document.getElementById('student-count').textContent = '245';
+                    document.getElementById('attendance-rate').textContent = '94.2%';
+                    document.getElementById('avg-grade').textContent = '3.75';
+                    document.getElementById('message-count').textContent = '12';
+
+                    // Initialize charts
+                    initializeGradeChart();
+                    initializeAttendanceChart();
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function initializeGradeChart() {
+            const ctx = document.getElementById('gradeChart');
+            if (ctx && !ctx.dataset.initialized) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['A', 'B', 'C', 'D', 'F'],
+                        datasets: [{
+                            label: 'Number of Students',
+                            data: [45, 78, 92, 28, 8],
+                            backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#fd7e14', '#dc3545']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+                ctx.dataset.initialized = true;
+            }
+        }
+
+        function initializeAttendanceChart() {
+            const ctx = document.getElementById('attendanceChart');
+            if (ctx && !ctx.dataset.initialized) {
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5'],
+                        datasets: [{
+                            label: 'Attendance %',
+                            data: [92, 94, 93, 95, 94],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: { min: 85, max: 100 }
+                        }
+                    }
+                });
+                ctx.dataset.initialized = true;
+            }
+        }
+
+        async function loadGrades() {
+            const studentId = document.getElementById('grade-student-id').value;
+            if (!studentId) {
+                showAlert('Please enter a student ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/grades/${studentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const grades = await response.json();
+                    const tbody = document.getElementById('grades-body');
+                    tbody.innerHTML = '';
+                    
+                    grades.forEach(grade => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${grade.subject}</td>
+                                <td>${grade.grade}</td>
+                                <td>${grade.semester}</td>
+                                <td>${new Date(grade.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    document.getElementById('grades-table').classList.remove('hidden');
+                } else {
+                    showAlert('Failed to load grades', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function addGrade(event) {
+            event.preventDefault();
+            const data = {
+                student_id: parseInt(document.getElementById('add-grade-student-id').value),
+                subject: document.getElementById('add-grade-subject').value,
+                grade: parseFloat(document.getElementById('add-grade-value').value),
+                semester: document.getElementById('add-grade-semester').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/grades`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Grade added successfully');
+                    event.target.reset();
+                } else {
+                    showAlert('Failed to add grade', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadAttendance() {
+            const studentId = document.getElementById('attendance-student-id').value;
+            if (!studentId) {
+                showAlert('Please enter a student ID', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/attendance/${studentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const records = await response.json();
+                    const tbody = document.getElementById('attendance-body');
+                    tbody.innerHTML = '';
+                    
+                    records.forEach(record => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${new Date(record.date).toLocaleDateString()}</td>
+                                <td><span class="status-badge status-${record.status}">${record.status.toUpperCase()}</span></td>
+                                <td>${new Date(record.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    document.getElementById('attendance-table').classList.remove('hidden');
+                } else {
+                    showAlert('Failed to load attendance', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function updateAttendance(event) {
+            event.preventDefault();
+            const data = {
+                student_id: parseInt(document.getElementById('mark-attendance-student-id').value),
+                status: document.getElementById('mark-attendance-status').value,
+                date: new Date(document.getElementById('mark-attendance-date').value).toISOString()
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/attendance`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Attendance marked successfully');
+                    event.target.reset();
+                } else {
+                    showAlert('Failed to mark attendance', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_URL}/messages`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const messages = await response.json();
+                    const tbody = document.getElementById('messages-body');
+                    tbody.innerHTML = '';
+                    
+                    messages.forEach(msg => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>User ${msg.sender_id}</td>
+                                <td>${msg.content}</td>
+                                <td>${new Date(msg.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    document.getElementById('messages-table').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        async function sendMessage(event) {
+            event.preventDefault();
+            const data = {
+                recipient_id: parseInt(document.getElementById('message-recipient-id').value),
+                content: document.getElementById('message-content').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Message sent successfully');
+                    event.target.reset();
+                    loadMessages();
+                } else {
+                    showAlert('Failed to send message', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function loadCalendarEvents() {
+            try {
+                const response = await fetch(`${API_URL}/calendar`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const events = await response.json();
+                    const tbody = document.getElementById('calendar-body');
+                    tbody.innerHTML = '';
+                    
+                    events.forEach(event => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${event.title}</td>
+                                <td>${event.event_type}</td>
+                                <td>${new Date(event.start_date).toLocaleDateString()}</td>
+                                <td>${new Date(event.end_date).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    document.getElementById('calendar-table').classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error loading calendar:', error);
+            }
+        }
+
+        async function createEvent(event) {
+            event.preventDefault();
+            const data = {
+                title: document.getElementById('event-title').value,
+                description: document.getElementById('event-description').value,
+                start_date: new Date(document.getElementById('event-start').value).toISOString(),
+                end_date: new Date(document.getElementById('event-end').value).toISOString(),
+                event_type: document.getElementById('event-type').value
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/calendar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showAlert('Event created successfully');
+                    event.target.reset();
+                    loadCalendarEvents();
+                } else {
+                    showAlert('Failed to create event', 'error');
+                }
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>
