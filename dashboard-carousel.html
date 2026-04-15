@@ -1,0 +1,247 @@
+<!-- Carousel Banner HTML - Insert after header, before hero section -->
+<!-- Add these styles to the <style> section -->
+
+<style>
+/* Image Carousel Banner */
+.carousel-banner {
+    width: 100%;
+    height: 350px;
+    background: linear-gradient(135deg, var(--primary) 0%, #0d3a8c 100%);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 40px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    position: relative;
+}
+
+.carousel-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.carousel-slide {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.carousel-slide.active {
+    opacity: 1;
+    animation: slideIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.carousel-slide img {
+    max-width: 95%;
+    max-height: 95%;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.carousel-dots {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+.carousel-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid white;
+}
+
+.carousel-dot.active {
+    background: white;
+    transform: scale(1.3);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+}
+
+.carousel-controls {
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: space-between;
+    z-index: 8;
+}
+
+.carousel-control-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+}
+
+.carousel-control-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+}
+
+.carousel-control-btn:active {
+    transform: scale(0.95);
+}
+
+.carousel-info {
+    position: absolute;
+    bottom: 60px;
+    left: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 8px 16px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+}
+
+@media (max-width: 768px) {
+    .carousel-banner {
+        height: 250px;
+    }
+
+    .carousel-control-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+
+    .carousel-dot {
+        width: 10px;
+        height: 10px;
+    }
+}
+</style>
+
+<!-- HTML to insert after header -->
+<div class="carousel-banner">
+    <div class="carousel-container">
+        <div class="carousel-slide active">
+            <img src="https://via.placeholder.com/1200x350/011f5b/ffffff?text=School+Event+1" alt="School Event 1">
+        </div>
+        <div class="carousel-slide">
+            <img src="https://via.placeholder.com/1200x350/0066cc/ffffff?text=School+Event+2" alt="School Event 2">
+        </div>
+        <div class="carousel-slide">
+            <img src="https://via.placeholder.com/1200x350/4DA6D6/ffffff?text=School+Event+3" alt="School Event 3">
+        </div>
+    </div>
+    <div class="carousel-controls">
+        <button class="carousel-control-btn" onclick="prevSlide()">❮</button>
+        <button class="carousel-control-btn" onclick="nextSlide()">❯</button>
+    </div>
+    <div class="carousel-dots" id="carousel-dots"></div>
+    <div class="carousel-info">Slide <span id="current-slide">1</span> of <span id="total-slides">3</span></div>
+</div>
+
+<!-- JavaScript to add to main script section -->
+<script>
+let currentSlide = 0;
+const totalSlides = 3;
+let autoPlayInterval;
+
+function initCarousel() {
+    generateDots();
+    updateCarousel();
+    startAutoPlay();
+}
+
+function generateDots() {
+    const dotsContainer = document.getElementById('carousel-dots');
+    for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `carousel-dot ${i === 0 ? 'active' : ''}`;
+        dot.onclick = () => goToSlide(i);
+        dotsContainer.appendChild(dot);
+    }
+}
+
+function updateCarousel() {
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.carousel-dot');
+    
+    slides.forEach((slide, index) => {
+        slide.classList.remove('active');
+        if (index === currentSlide) slide.classList.add('active');
+    });
+    
+    dots.forEach((dot, index) => {
+        dot.classList.remove('active');
+        if (index === currentSlide) dot.classList.add('active');
+    });
+    
+    document.getElementById('current-slide').textContent = currentSlide + 1;
+    document.getElementById('total-slides').textContent = totalSlides;
+}
+
+function nextSlide() {
+    currentSlide = (currentSlide + 1) % totalSlides;
+    updateCarousel();
+    resetAutoPlay();
+}
+
+function prevSlide() {
+    currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+    updateCarousel();
+    resetAutoPlay();
+}
+
+function goToSlide(n) {
+    currentSlide = n;
+    updateCarousel();
+    resetAutoPlay();
+}
+
+function startAutoPlay() {
+    autoPlayInterval = setInterval(() => {
+        nextSlide();
+    }, 3000); // Change slide every 3 seconds
+}
+
+function resetAutoPlay() {
+    clearInterval(autoPlayInterval);
+    startAutoPlay();
+}
+
+// Initialize carousel when DOM is ready
+document.addEventListener('DOMContentLoaded', initCarousel);
+</script>
